@@ -14,10 +14,17 @@
     "@chakra-ui/react": "^1.8.8",
     "@emotion/react": "^11.9.0",
     "@emotion/styled": "^11.8.1",
+    "@googlemaps/react-wrapper": "^1.1.32",
+    "@react-three/fiber": "^8.0.12",
+    "@types/three": "^0.139.0",
+    "firebase": "^9.6.11",
     "framer-motion": "^6.3.1",
     "next": "12.1.5",
     "react": "18.0.0",
-    "react-dom": "18.0.0"
+    "react-dom": "18.0.0",
+    "react-icons": "^4.3.1",
+    "three": "^0.139.2",
+    "video-react": "^0.15.0"
   },
   "devDependencies": {
     "@types/node": "^17.0.25",
