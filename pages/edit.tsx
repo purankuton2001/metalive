@@ -3,16 +3,23 @@ import React, { Suspense, useRef } from "react";
 import { useLoader } from "@react-three/fiber";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
-function Edit() {
-  const gltf = useLoader(
-    GLTFLoader,
-    "https://firebasestorage.googleapis.com/v0/b/hitokoto-309511.appspot.com/o/Stage.glb?alt=media&token=603a56a5-fd93-4670-b0bd-2ac4ce2f9e9c"
-  );
+async function Edit() {
+  const url = await fetch(
+    "https://us-central1-metalive-348103.cloudfunctions.net/liveFetch/Stage",
+    {
+      method: "POST",
+    }
+  ).then((response) => {
+    console.log(response.text());
+    return response.text();
+  });
+
+  const gltf = useLoader(GLTFLoader, url);
   return (
     <div>
       <Canvas>
         <Suspense fallback={null}>
-          <primitive object={gltf.scene} />
+          {gltf && <primitive object={gltf.scene} />}
         </Suspense>
       </Canvas>
     </div>
