@@ -1,29 +1,56 @@
-import { Canvas } from "@react-three/fiber";
-import React, { Suspense, useRef } from "react";
+import { Canvas, useFrame, extend } from "@react-three/fiber";
+import React, { lazy, Suspense } from "react";
+import Model from "./model";
+import * as THREE from "three";
+import {
+  Stage,
+  OrbitControls,
+  Environment,
+  TransformControls,
+} from "@react-three/drei";
 import { useLoader } from "@react-three/fiber";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import axios from "axios";
+import { GetStaticProps } from "next";
+import { Box, position } from "@chakra-ui/react";
 
-async function Edit() {
-  const url = await fetch(
-    "https://us-central1-metalive-348103.cloudfunctions.net/liveFetch/Stage",
-    {
-      method: "POST",
-    }
-  ).then((response) => {
-    console.log(response.text());
-    return response.text();
-  });
-
-  const gltf = useLoader(GLTFLoader, url);
+function Edit({ url }) {
   return (
-    <div>
-      <Canvas>
-        <Suspense fallback={null}>
-          {gltf && <primitive object={gltf.scene} />}
-        </Suspense>
+    <Box h={800}>
+      <Canvas
+        gl={{ alpha: false }}
+        camera={{ position: [0, 15, 30], fov: 70 }}
+        onCreated={({ gl, camera }) => {
+          camera.lookAt(0, 0, 0);
+        }}
+      >
+        <OrbitControls attach="orbitControls" makeDefault />
+        <TransformControls mode="translate" />
+        <Stage>
+          <Model url={url} position={[0, 0, 0]} />
+        </Stage>
       </Canvas>
-    </div>
+    </Box>
   );
 }
-
 export default Edit;
+
+export const getStaticProps: GetStaticProps = async () => {
+  const data = { fileName: "Stage.glb" };
+  const res = await axios.post(
+    "https://us-central1-metalive-348103.cloudfunctions.net/liveFetch",
+    data
+  );
+  console.log(res.data);
+  const url = res.data;
+
+  if (!url) {
+    return {
+      notFound: true,
+    };
+  }
+
+  return {
+    props: { url },
+  };
+};
