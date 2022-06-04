@@ -1,5 +1,5 @@
 import { Box, chakra, Grid, GridItem } from "@chakra-ui/react";
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 

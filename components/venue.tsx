@@ -8,8 +8,8 @@ export default function Venue(props) {
   const gltf = useGLTF(props.url);
   console.log(gltf);
   return (
-    <Suspense fallback={null}>
-      <primitive object={gltf.scene} />
+    <Suspense fallback={null} >
+      <primitive object={gltf.scene} rotation={[0, Math.PI/2, 0]}/>
     </Suspense>
   );
 }
