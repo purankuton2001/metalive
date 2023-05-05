@@ -1,15 +1,16 @@
-import React, { useRef, Suspense } from "react";
-import { useGLTF } from "@react-three/drei";
-import { position } from "@chakra-ui/react";
+import React, {Suspense, useMemo} from "react";
+import {useGLTF} from "@react-three/drei";
 import {} from "react";
+import {useLoader} from '@react-three/fiber'
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader'
 
 export default function Venue(props) {
-  const group = useRef();
-  const gltf = useGLTF(props.url);
-  console.log(gltf);
-  return (
-    <Suspense fallback={null} >
-      <primitive object={gltf.scene} rotation={[0, Math.PI/2, 0]}/>
-    </Suspense>
-  );
+    const gltf = useLoader(GLTFLoader, props.url);
+    // @ts-ignore
+    const copiedScene = useMemo(() => gltf.scene.clone(), [gltf.scene])
+    return (
+        <Suspense fallback={null}>
+            <primitive ref={props.ref} object={copiedScene} rotation={[0, Math.PI / 2, 0]}/>
+        </Suspense>
+    );
 }

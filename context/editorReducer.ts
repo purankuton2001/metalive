@@ -10,37 +10,39 @@ export const editorReducer = (state: EditorState, action: Action) => {
             ).then(() => {
                 return {...state, dmxConnect: action.payload.ipAdress}
             });
-        case ActionTypes.ADDEQUIPMENT:
-            switch (action.payload.equipment) {
-                case EquipmentTypes.MovingLight:
-                    const s: Equipment = {
-                        position: [0, 0, 0],
-                        parmeter: {
-                            pan: 0,
-                            tilt: 0,
-                            zoom: 0,
-                            dimmer: 0,
-                            strobe: 0,
-                            color: {r: 0, g: 0, b: 0},
-                            currentTime: 0,
-                        },
-                        eId: 0,
-                        keyframes: {
-                            changed: false,
-                            amount: 0,
-                            pan: [],
-                            tilt: [],
-                            zoom: [],
-                            dimmer: [],
-                            strobe: [],
-                            color: {r: [], g: [], b: []},
-                        },
-                    };
-                    const newEquipments = state.equipments;
-                    newEquipments.push(s);
-                    console.log(newEquipments);
-                    return {...state, equipments: newEquipments};
-            }
+        case ActionTypes.CHANGEDISPLAYRANGE:
+            return {...state, displayRange: action.payload.value};
+        // case ActionTypes.ADDEQUIPMENT:
+        //     switch (action.payload.equipment) {
+        //         case EquipmentTypes.MovingLight:
+        //             const s: Equipment = {
+        //                 position: [0, 0, 0],
+        //                 parmeter: {
+        //                     pan: 0,
+        //                     tilt: 0,
+        //                     zoom: 0,
+        //                     dimmer: 0,
+        //                     strobe: 0,
+        //                     color: {r: 0, g: 0, b: 0},
+        //                     currentTime: 0,
+        //                 },
+        //                 eId: 0,
+        //                 keyframes: {
+        //                     changed: false,
+        //                     amount: 0,
+        //                     pan: [],
+        //                     tilt: [],
+        //                     zoom: [],
+        //                     dimmer: [],
+        //                     strobe: [],
+        //                     color: {r: [], g: [], b: []},
+        //                 },
+        //             };
+        //             const newEquipments = state.equipments;
+        //             newEquipments.push(s);
+        //             console.log(newEquipments);
+        //             return {...state, equipments: newEquipments};
+        //     }
         case ActionTypes.CHANGETRANSFORMOBJECT:
             return {
                 ...state,
@@ -52,7 +54,7 @@ export const editorReducer = (state: EditorState, action: Action) => {
             };
         case ActionTypes.CHANGEPARMETER:
             const newEquipments = state.equipments;
-            newEquipments[state.transformControl.index].parmeter[action.payload.key] =
+            newEquipments[state.transformControl.index].parmeter[action.payload.key].val =
                 action.payload.value;
             if (
                 state.equipments[state.transformControl.index].keyframes[
@@ -85,12 +87,13 @@ export const editorReducer = (state: EditorState, action: Action) => {
                         !newEquipments[state.transformControl.index].keyframes.changed;
                 }
             }
+            console.log(newEquipments[state.transformControl.index].parmeter.pan)
             return {...state, equipments: newEquipments};
         case ActionTypes.CHANGEOBJECTPARMETER:
             const newObjectEquipments = state.equipments;
             newObjectEquipments[state.transformControl.index].parmeter[
                 action.payload.par[0]
-                ][action.payload.par[1]] = action.payload.value;
+                ].val[action.payload.par[1]].val = action.payload.value;
             if (
                 state.equipments[state.transformControl.index].keyframes[
                     action.payload.par[0]
@@ -128,48 +131,6 @@ export const editorReducer = (state: EditorState, action: Action) => {
             return {...state, equipments: newObjectEquipments};
         case ActionTypes.CHANGECURRENTTIME:
             return {...state, currentTime: action.payload.value};
-        // if (action.payload.value > state.displayRange[1] - 0.1) {
-        //   const rangelength = state.displayRange[1] - state.displayRange[0];
-        //   const newDisplayRange =
-        //     state.duration < action.payload.value
-        //       ? [state.duration - rangelength, state.duration]
-        //       : [
-        //           action.payload.value + 0.1 - rangelength,
-        //           action.payload.value + 0.1,
-        //         ];
-        //   return {
-        //     ...state,
-        //     displayRange: newDisplayRange,
-        //     currentTime: Math.min(state.duration, action.payload.value),
-        //   };
-        // } else {
-        //   if (action.payload.value < state.displayRange[0] + 0.1) {
-        //     const rangelength = state.displayRange[1] - state.displayRange[0];
-        //     const newDisplayRange =
-        //       0 > action.payload.value
-        //         ? [0, rangelength]
-        //         : [
-        //             action.payload.value - 0.1,
-        //             action.payload.value - 0.1 + rangelength,
-        //           ];
-        //     return {
-        //       ...state,
-        //       displayRange: newDisplayRange,
-        //       currentTime: Math.max(0, action.payload.value),
-        //     };
-        //   } else {
-        //   }
-        // }
-        case ActionTypes.CHANGEDISPLAYRANGE:
-            return {...state, displayRange: action.payload.value};
-        // if (action.payload.value[0] > state.currentTime) {
-        //   return {
-        //     ...state,
-        //     currentTime: action.payload.value[0],
-        //     displayRange: action.payload.value,
-        //   };
-        // } else {
-        // }
         case ActionTypes.TOGGLEPLAYING:
             axios.post("https://us-central1-metalive-348103.cloudfunctions.net/playDmx",
                 {currentTime: state.currentTime, parmeter: state.equipments[0].parmeter, playing: !state.playing})
@@ -177,6 +138,59 @@ export const editorReducer = (state: EditorState, action: Action) => {
             return {...state, playing: !state.playing};
         case ActionTypes.TIMEPROGRESS:
             return {...state, currentTime: state.currentTime + 0.01};
+        case ActionTypes.LIVEDATAFETCH:
+            const {url, equipments, liveId} = action.payload.data
+            return {...state, url, equipments, liveId}
+        case ActionTypes.RERENDERING:
+            return {...state};
+        case ActionTypes.TURNNEXTKEYFRAME:
+            const newCurrentTimearr2 = state.equipments[state.transformControl.index].keyframes[action.payload.par]
+                .filter(t => t.time > state.currentTime)
+            if (newCurrentTimearr2.length !== 0) {
+                const newCurrentTime2 = newCurrentTimearr2.reduce((a, b) => a.time > b.time ? b : a);
+                return {
+                    ...state,
+                    currentTime: typeof newCurrentTime2 == "object" ? newCurrentTime2.time : newCurrentTime2
+                }
+            } else {
+                return state
+            }
+        case ActionTypes.TURNOBJECTNEXTKEYFRAME:
+            const newCurrentTimearr3 = state.equipments[state.transformControl.index].keyframes[action.payload.par[0]][action.payload.par[1]]
+                .filter(t => t.time > state.currentTime)
+            if (newCurrentTimearr3.length !== 0) {
+                const newCurrentTime2 = newCurrentTimearr3.reduce((a, b) => a.time > b.time ? b : a);
+                return {
+                    ...state,
+                    currentTime: typeof newCurrentTime2 == "object" ? newCurrentTime2.time : newCurrentTime2
+                }
+            } else {
+                return state
+            }
+        case ActionTypes.TURNPREKEYFRAME:
+            const newCurrentTimearr = state.equipments[state.transformControl.index].keyframes[action.payload.par]
+                .filter(t => t.time < state.currentTime)
+            if (newCurrentTimearr.length !== 0) {
+                const newCurrentTime = newCurrentTimearr.reduce((a, b) => a.time < b.time ? b : a);
+                return {
+                    ...state,
+                    currentTime: typeof newCurrentTime == "object" ? newCurrentTime.time : newCurrentTime
+                }
+            } else {
+                return state
+            }
+        case ActionTypes.TURNOBJECTPREKEYFRAME:
+            const newCurrentTimearr4 = state.equipments[state.transformControl.index].keyframes[action.payload.par[0]][action.payload.par[1]]
+                .filter(t => t.time < state.currentTime)
+            if (newCurrentTimearr4.length !== 0) {
+                const newCurrentTime = newCurrentTimearr4.reduce((a, b) => a.time < b.time ? b : a);
+                return {
+                    ...state,
+                    currentTime: typeof newCurrentTime == "object" ? newCurrentTime.time : newCurrentTime
+                }
+            } else {
+                return state
+            }
         case ActionTypes.ADDKEYFRAME:
             const newEquipments2 = state.equipments;
             newEquipments2[state.transformControl.index].keyframes[
@@ -184,9 +198,9 @@ export const editorReducer = (state: EditorState, action: Action) => {
                 ].push({
                 time: state.currentTime,
                 value:
-                    newEquipments2[state.transformControl.index].parmeter[
-                        action.payload.par
-                        ],
+                newEquipments2[state.transformControl.index].parmeter[
+                    action.payload.par
+                    ].val,
             });
             newEquipments2[state.transformControl.index].keyframes[
                 action.payload.par
@@ -202,9 +216,9 @@ export const editorReducer = (state: EditorState, action: Action) => {
                 ][action.payload.par[1]].push({
                 time: state.currentTime,
                 value:
-                    newEquipments6[state.transformControl.index].parmeter[
-                        action.payload.par[0]
-                        ][action.payload.par[1]],
+                newEquipments6[state.transformControl.index].parmeter[
+                    action.payload.par[0]
+                    ].val[action.payload.par[1]].val,
             });
             newEquipments6[state.transformControl.index].keyframes[
                 action.payload.par[0]
@@ -227,8 +241,6 @@ export const editorReducer = (state: EditorState, action: Action) => {
                 action.payload.par[0]
                 ][action.payload.par[1]][action.payload.idx].time = action.payload.value;
             return {...state, equipments: newEquipments4};
-        case ActionTypes.RERENDERING:
-            return {...state};
         case ActionTypes.CHANGEKEYFRAMEFINISH:
             const newEquipments7 = state.equipments;
             newEquipments7[state.transformControl.index].keyframes[
@@ -249,31 +261,7 @@ export const editorReducer = (state: EditorState, action: Action) => {
             newEquipments8[state.transformControl.index].keyframes.changed =
                 !newEquipments8[state.transformControl.index].keyframes.changed;
             return {...state, equipments: newEquipments8};
-        case ActionTypes.PROGRESSTIME:
-            return {...state, currentTime: state.currentTime + 0.01};
-        case ActionTypes.TURNNEXTKEYFRAME:
-            const newCurrentTimearr2 = state.equipments[state.transformControl.index].keyframes[action.payload.par]
-                .filter(t => t.time > state.currentTime)
-            if (newCurrentTimearr2.length !== 0) {
-                const newCurrentTime2 = newCurrentTimearr2.reduce((a, b) => Math.min(a.time, b.time))
-                return {
-                    ...state,
-                    currentTime: typeof newCurrentTime2 == "object" ? newCurrentTime2.time : newCurrentTime2
-                }
-            } else {
-                return state
-            }
-        case ActionTypes.TURNPREKEYFRAME:
-            const newCurrentTimearr = state.equipments[state.transformControl.index].keyframes[action.payload.par]
-                .filter(t => t.time < state.currentTime)
-            if (newCurrentTimearr.length !== 0) {
-                const newCurrentTime = newCurrentTimearr.reduce((a, b) => Math.max(a.time, b.time))
-                return {
-                    ...state,
-                    currentTime: typeof newCurrentTime == "object" ? newCurrentTime.time : newCurrentTime
-                }
-            } else {
-                return state
-            }
+        case ActionTypes.SETDURATION:
+            return {...state, duration: action.payload.duration, displayRange: [0, action.payload.duration]}
     }
 };

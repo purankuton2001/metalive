@@ -1,7 +1,6 @@
 import {Equipment, Keyframes} from "./utils";
 
-type Live = {
-    id: string,
+export type Live = {
     url: string,
     equipments: Equipment[],
     title: string,
@@ -9,8 +8,10 @@ type Live = {
     description: string,
 }
 
-type Direction = {
-    id: string,
+export type Direction = {
+    title: string,
+    description: string,
+    liveId: string,
     duration: number,
     artist: string,
     url: string,

@@ -18,13 +18,16 @@ import {useWindowSize} from "../hooks/useWindowSize";
 import {EditorContext} from "../context/EditorContext";
 import {ActionTypes} from "../types/utils";
 import {BsPauseFill, BsPlayFill} from "react-icons/bs";
+import {ChevronLeftIcon, ChevronRightIcon} from "@chakra-ui/icons";
+
 
 export function ParmeterPanel() {
-    const timelineScroll = useRef();
-    const slider = useRef();
+    const timelineScroll = useRef<any>();
+    const slider = useRef<any>();
     const {width, height} = useWindowSize();
     const [keys, setKeys] = useState([]);
     const {state, dispatch} = useContext(EditorContext);
+
 
     useEffect(() => {
         const w =
@@ -41,12 +44,14 @@ export function ParmeterPanel() {
             state.equipments.length !== 0 &&
             state.equipments[state.transformControl.index]
         ) {
-            const newKeys = Object.keys(
-                state.equipments[state.transformControl.index]?.parmeter
-            );
+            const newKeys = []
+            const par = state.equipments[state.transformControl.index]?.parmeter;
+            for (const [key, value] of Object.entries(par)) {
+                newKeys[value.idx] = key;
+            }
             setKeys(newKeys);
         }
-    }, [state.transformControl.index]);
+    }, [state.transformControl.index, state.currentTime]);
     return (
         <Box>
             <chakra.div display={"flex"} flexDirection={"row"}>
@@ -65,15 +70,17 @@ export function ParmeterPanel() {
                     }}
                 >
                     <chakra.div
-                        height={height / 10}
+                        borderWidth={.5}
+                        height={height / 9}
                         width={"100%"}
-                        bg={"tomato"}
+                        bg={"white"}
                         alignItems={"center"}
                         display={"flex"}
                         flexDirection={"row"}
-                        justifyContent={"space-between"}
+                        justifyContent={"right"}
+                        px={2}
                     >
-                        <chakra.text>パラメーター {state.currentTime}</chakra.text>
+                        <chakra.text px={2} fontSize={18}>{state.currentTime} / {state.duration}</chakra.text>
                         <Icon
                             as={!state.playing ? BsPlayFill : BsPauseFill}
                             w={8}
@@ -88,7 +95,7 @@ export function ParmeterPanel() {
                             if (
                                 typeof state.equipments[state.transformControl.index].parmeter[
                                     key
-                                    ] === "number"
+                                    ]?.val === "number"
                             ) {
                                 if (key !== "currentTime") {
                                     return (
@@ -106,7 +113,7 @@ export function ParmeterPanel() {
                                                 {key +
                                                     state.equipments[state.transformControl.index].parmeter[
                                                         key
-                                                        ]}
+                                                        ].val}
                                             </chakra.text>
                                             <chakra.div
                                                 justifyContent={"space-around"}
@@ -114,25 +121,25 @@ export function ParmeterPanel() {
                                                 flexDirection={"row"}
                                                 w={60}
                                                 h={4}
-                                                bg={"black"}
+                                                bg={"white"}
                                                 mr={4}
                                             >
-                                                <chakra.div
-                                                    bg={"tomato"}
+                                                <ChevronLeftIcon
                                                     w={4}
                                                     h={4}
                                                     onClick={() => {
                                                         dispatch({
                                                             type: ActionTypes.TURNPREKEYFRAME,
-                                                            payload: {par: key}
-                                                        })
+                                                            payload: {par: key},
+                                                        });
                                                     }}
                                                 />
                                                 <Spacer/>
                                                 <chakra.div
-                                                    bg={"tomato"}
+                                                    bg={"gray.400"}
                                                     w={4}
                                                     h={4}
+                                                    borderRadius={'full'}
                                                     onClick={() => {
                                                         dispatch({
                                                             type: ActionTypes.ADDKEYFRAME,
@@ -141,11 +148,11 @@ export function ParmeterPanel() {
                                                     }}
                                                 />
                                                 <Spacer/>
-                                                <chakra.div bg={"tomato"} w={4} h={4} onClick={() => {
+                                                <ChevronRightIcon w={4} h={4} onClick={() => {
                                                     dispatch({
                                                         type: ActionTypes.TURNNEXTKEYFRAME,
-                                                        payload: {par: key}
-                                                    })
+                                                        payload: {par: key},
+                                                    });
                                                 }}/>
                                             </chakra.div>
                                             <Slider
@@ -155,7 +162,7 @@ export function ParmeterPanel() {
                                                 value={
                                                     state.equipments[state.transformControl.index].parmeter[
                                                         key
-                                                        ]
+                                                        ].val
                                                 }
                                                 onChange={(v) => {
                                                     dispatch({
@@ -169,7 +176,7 @@ export function ParmeterPanel() {
                                             >
                                                 <SliderTrack bg="red.100">
                                                     <Box position="relative" right={10}/>
-                                                    <SliderFilledTrack bg="tomato"/>
+                                                    <SliderFilledTrack bg="white"/>
                                                 </SliderTrack>
                                                 <SliderThumb boxSize={6}/>
                                             </Slider>
@@ -177,13 +184,19 @@ export function ParmeterPanel() {
                                     );
                                 }
                             }
-                            if (key === "color") {
-                                const ks = Object.keys(
-                                    state.equipments[state.transformControl.index].parmeter[key]
-                                );
+                            if (typeof state.equipments[state.transformControl.index].parmeter[
+                                key
+                                ]?.val) {
+                                const ks = []
+                                for (const [k, v] of Object.entries(state.equipments[state.transformControl.index]
+                                    .parmeter[key].val)) {
+                                    // @ts-ignore
+                                    ks[v.idx] = k;
+                                }
                                 return ks.map((k) => {
                                     return (
                                         <chakra.div
+                                            key={k}
                                             flexDirection={"row"}
                                             display={"flex"}
                                             width={"100%"}
@@ -196,7 +209,7 @@ export function ParmeterPanel() {
                                             <chakra.text fontSize={18} width={width / 5}>
                                                 {k +
                                                     state.equipments[state.transformControl.index]
-                                                        .parmeter[key][k]}
+                                                        .parmeter[key].val[k].val}
                                             </chakra.text>
                                             <chakra.div
                                                 justifyContent={"space-around"}
@@ -204,21 +217,25 @@ export function ParmeterPanel() {
                                                 flexDirection={"row"}
                                                 w={60}
                                                 h={4}
-                                                bg={"black"}
+                                                bg={"white"}
                                                 mr={4}
                                             >
-                                                <chakra.div
-                                                    bg={"tomato"}
+                                                <ChevronLeftIcon
                                                     w={4}
                                                     h={4}
                                                     onClick={() => {
+                                                        dispatch({
+                                                            type: ActionTypes.TURNOBJECTPREKEYFRAME,
+                                                            payload: {par: [key, k]},
+                                                        });
                                                     }}
                                                 />
                                                 <Spacer/>
                                                 <chakra.div
-                                                    bg={"tomato"}
+                                                    bg={"gray.400"}
                                                     w={4}
                                                     h={4}
+                                                    borderRadius={'full'}
                                                     onClick={() => {
                                                         dispatch({
                                                             type: ActionTypes.ADDOBJECTKEYFRAME,
@@ -227,7 +244,12 @@ export function ParmeterPanel() {
                                                     }}
                                                 />
                                                 <Spacer/>
-                                                <chakra.div bg={"tomato"} w={4} h={4}/>
+                                                <ChevronRightIcon w={4} h={4} onClick={() => {
+                                                    dispatch({
+                                                        type: ActionTypes.TURNOBJECTNEXTKEYFRAME,
+                                                        payload: {par: [key, k]},
+                                                    });
+                                                }}/>
                                             </chakra.div>
                                             <Slider
                                                 min={0}
@@ -235,7 +257,7 @@ export function ParmeterPanel() {
                                                 step={0.1}
                                                 value={
                                                     state.equipments[state.transformControl.index]
-                                                        .parmeter[key][k]
+                                                        .parmeter[key].val[k].val
                                                 }
                                                 onChange={(v) => {
                                                     dispatch({
@@ -249,7 +271,7 @@ export function ParmeterPanel() {
                                             >
                                                 <SliderTrack bg="red.100">
                                                     <Box position="relative" right={10}/>
-                                                    <SliderFilledTrack bg="tomato"/>
+                                                    <SliderFilledTrack bg="gray.500"/>
                                                 </SliderTrack>
                                                 <SliderThumb boxSize={6}/>
                                             </Slider>
@@ -264,7 +286,7 @@ export function ParmeterPanel() {
                     width={"100%"}
                 >
                     <Slider
-                        height={height / 100}
+                        height={height / 140}
                         min={0}
                         max={state.duration}
                         step={0.1}
@@ -301,7 +323,7 @@ export function ParmeterPanel() {
                         <RangeSliderThumb index={1}/>
                     </RangeSlider>
                     <chakra.div
-                        bg={"tomato"}
+                        bg={"white"}
                         overflowX={"auto"}
                         width={"100%"}
                         ref={timelineScroll}
@@ -367,7 +389,7 @@ export function ParmeterPanel() {
                         >
                             <SliderTrack bg="red.100">
                                 <Box position="relative" right={10}/>
-                                <SliderFilledTrack bg="tomato"/>
+                                <SliderFilledTrack bg="white"/>
                             </SliderTrack>
                             <SliderThumb boxSize={6}/>
                         </Slider>
@@ -375,7 +397,7 @@ export function ParmeterPanel() {
                             keys?.map((key) => {
                                 if (
                                     typeof state.equipments[state.transformControl.index]
-                                        .parmeter[key] === "number"
+                                        .parmeter[key].val === "number"
                                 ) {
                                     if (key !== "currentTime") {
                                         return (
@@ -394,6 +416,7 @@ export function ParmeterPanel() {
                                                     key
                                                     ]?.map(({time, value}, idx) => (
                                                     <chakra.div
+                                                        key={idx}
                                                         width={"100%"}
                                                         height={"100%"}
                                                         position={"absolute"}
@@ -420,11 +443,11 @@ export function ParmeterPanel() {
                                                             }}
                                                         >
                                                             <SliderTrack
-                                                                bg="tomato"
+                                                                bg="white"
                                                                 position={"absolute"}
                                                                 top={0}
                                                             >
-                                                                <SliderFilledTrack bg="tomato"/>
+                                                                <SliderFilledTrack bg="white"/>
                                                             </SliderTrack>
                                                             <SliderThumb boxSize={6}/>
                                                         </Slider>
@@ -434,15 +457,18 @@ export function ParmeterPanel() {
                                         );
                                     }
                                 } else {
-                                    if (key === "color") {
-                                        const ks = Object.keys(
-                                            state.equipments[state.transformControl.index].parmeter[
-                                                key
-                                                ]
-                                        );
+                                    if (typeof state.equipments[state.transformControl.index]
+                                        .parmeter[key].val === "object") {
+                                        const ks = []
+                                        for (const [k, v] of Object.entries(state.equipments[state.transformControl.index]
+                                            .parmeter[key].val)) {
+                                            // @ts-ignore
+                                            ks[v.idx] = k;
+                                        }
                                         return ks.map((k) => {
                                             return (
                                                 <chakra.div
+                                                    key={k}
                                                     position={"relative"}
                                                     width={`${
                                                         (state.duration /
@@ -458,6 +484,7 @@ export function ParmeterPanel() {
                                                         state.transformControl.index
                                                         ]?.keyframes[key][k]?.map(({time, value}, idx) => (
                                                         <chakra.div
+                                                            key={idx}
                                                             width={"100%"}
                                                             height={"100%"}
                                                             position={"absolute"}
@@ -484,11 +511,11 @@ export function ParmeterPanel() {
                                                                 }}
                                                             >
                                                                 <SliderTrack
-                                                                    bg="tomato"
+                                                                    bg="white"
                                                                     position={"absolute"}
                                                                     top={0}
                                                                 >
-                                                                    <SliderFilledTrack bg="tomato"/>
+                                                                    <SliderFilledTrack bg="white"/>
                                                                 </SliderTrack>
                                                                 <SliderThumb boxSize={6}/>
                                                             </Slider>

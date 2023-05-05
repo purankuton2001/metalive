@@ -31,4 +31,4 @@ yarn-error.log*
 # vercel
 .vercel
 
-firebase/firebase.tsx
+firebase/index.ts

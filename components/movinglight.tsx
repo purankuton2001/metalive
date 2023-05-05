@@ -1,8 +1,8 @@
-import React, {useContext, useEffect, useRef, useState} from "react";
+import React, {useContext, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {useGLTF, useHelper} from "@react-three/drei";
 import {EditorContext} from "../context/EditorContext";
 import {ActionTypes} from "../types/utils";
-import {Color, Object3D, SpotLightHelper,} from "three";
+import {Color, Material, MeshStandardMaterial, Object3D, SpotLightHelper,} from "three";
 import {extend} from "@react-three/fiber";
 import {gsap} from "gsap";
 import * as THREE from "three";
@@ -12,6 +12,19 @@ import {omitBy} from "lodash";
 
 extend({Object3D});
 export default function Movinglight(props) {
+
+    function decimalPart(num) {
+        var decPart = num - ((num >= 0) ? Math.floor(num) : Math.ceil(num));
+        return decPart;
+    }
+
+    const {index, mode} = props;
+    const {state, dispatch} = useContext(EditorContext);
+    const {parmeter} = state.equipments[index];
+    console.log(state.currentTime);
+    console.log(Math.sin(2 * Math.PI * parmeter.strobe.val * decimalPart(state.currentTime)))
+
+
     const vertexShader = `
         varying vec3 vNormal;
         varying vec3 vWorldPosition;
@@ -62,13 +75,6 @@ export default function Movinglight(props) {
         // set the final color
         gl_FragColor	= vec4( lightColor, dimmer * intensity);
         }`;
-    const gsapTimer = useRef();
-    const tl = useRef();
-    const {index} = props;
-    const group = useRef();
-    const obj = useRef();
-    const {state, dispatch} = useContext(EditorContext);
-    const {parmeter} = state.equipments[index]
     const volumetricMaterial = {
         uniforms: {
             attenuation: {
@@ -86,14 +92,14 @@ export default function Movinglight(props) {
             lightColor: {
                 type: "c",
                 value: new Color(
-                    parmeter.color.r,
-                    parmeter.color.g,
-                    parmeter.color.b
+                    parmeter.color.val.r.val,
+                    parmeter.color.val.g.val,
+                    parmeter.color.val.b.val
                 )
             },
             dimmer: {
                 type: "f",
-                value: parmeter.dimmer / 255,
+                value: parmeter.strobe.val === 0 ? (parmeter.dimmer.val / 255) : (parmeter.dimmer.val / 255) * 0.5 + 0.5 * Math.sin(2 * Math.PI * parmeter.strobe.val * decimalPart(state.currentTime)),
             },
         },
         vertexShader: vertexShader,
@@ -103,14 +109,30 @@ export default function Movinglight(props) {
         transparent: true,
         depthWrite: false
     };
-    const {nodes} = useGLTF("asset/movinglight.glb");
-    const spotlight = useRef();
 
-    useHelper(spotlight, SpotLightHelper);
+    const gsapTimer = useRef();
+    const tl = useRef();
     useEffect(() => {
+    }, [mode])
+    const group = useRef();
+
+    console.log(state.equipments[index])
+    // @ts-ignore
+    const {nodes} = useGLTF("asset/movinglight.glb");
+    const obj = useRef();
+    const spotlight = useRef<THREE.SpotLight>();
+    useEffect(() => {
+        if (spotlight.current) {
+            spotlight.current.target = obj.current;
+        }
+    }, [spotlight]);
+    useLayoutEffect(() => {
+        // @ts-ignore
         tl.current?.clear();
-        tl.current?.fromTo({currentTime: 0}, parmeter, {
-            currentTime: state.duration,
+        // @ts-ignore
+        tl.current?.fromTo({...parmeter.currentTime, val: 0}, parmeter.currentTime, {
+            ...parmeter.currentTime,
+            val: state.duration,
             duration: state.duration
         });
         if (state.equipments[index]?.keyframes) {
@@ -118,24 +140,23 @@ export default function Movinglight(props) {
                 if (state.equipments[index].keyframes[key].length >= 2) {
                     let preTime = 0;
                     state.equipments[index].keyframes[key].forEach((k, idx) => {
-                        const gsappar = {};
                         if (idx === 0) {
-                            gsappar[key] = k.value;
-                            const from = {};
-                            from[key] = k.value;
+                            const from = {...parmeter[key], val: k.value};
+                            const gsappar = {...parmeter[key], val: k.value};
                             gsappar["duration"] = k.time - preTime;
+                            // @ts-ignore
                             tl.current.fromTo(
-                                parmeter,
+                                parmeter[key],
                                 from,
                                 gsappar,
                                 preTime
                             );
                         } else {
-                            gsappar[key] = k.value;
+                            const gsappar = {...parmeter[key], val: k.value};
                             gsappar["duration"] = k.time - preTime;
-                            tl.current.to(parmeter, gsappar, preTime);
+                            // @ts-ignore
+                            tl.current.to(parmeter[key], gsappar, preTime);
                         }
-                        console.log(gsappar);
                         preTime = k.time;
                     });
                 }
@@ -147,21 +168,22 @@ export default function Movinglight(props) {
                                 (keyframe, idx) => {
                                     const gsappar = {};
                                     if (idx === 0) {
-                                        gsappar[k] = keyframe.value;
-                                        const from = {};
-                                        from[k] = keyframe.value;
+                                        const gsappar = {...parmeter[key].val[k], val: keyframe.value};
+                                        const from = {...parmeter[key].val[k], val: keyframe.value};
                                         gsappar["duration"] = keyframe.time - preTime;
+                                        // @ts-ignore
                                         tl.current.fromTo(
-                                            parmeter[key],
+                                            parmeter[key].val[k],
                                             from,
                                             gsappar,
                                             preTime
                                         );
                                     } else {
+                                        const gsappar = {...parmeter[key].val[k], val: keyframe.value};
                                         gsappar["duration"] = keyframe.time - preTime;
-                                        gsappar[k] = keyframe.value;
+                                        // @ts-ignore
                                         tl.current.to(
-                                            parmeter[key],
+                                            parmeter[key].val[k],
                                             gsappar,
                                             preTime
                                         );
@@ -174,11 +196,18 @@ export default function Movinglight(props) {
                 }
             });
         }
+        // @ts-ignore
+        tl.current?.seek(state.currentTime);
+        dispatch({type: ActionTypes.RERENDERING});
+
     }, [state.equipments[index]?.keyframes.changed]);
-    useEffect(() => {
+    useLayoutEffect(() => {
+        // @ts-ignore
         tl.current?.clear();
-        tl.current?.fromTo({currentTime: 0}, parmeter, {
-            currentTime: state.duration,
+        // @ts-ignore
+        tl.current?.fromTo({...parmeter.currentTime, val: 0}, parmeter.currentTime, {
+            ...parmeter.currentTime,
+            val: state.duration,
             duration: state.duration
         });
         if (state.equipments[index]?.keyframes) {
@@ -186,37 +215,26 @@ export default function Movinglight(props) {
                 if (state.equipments[index].keyframes[key].length >= 2) {
                     let preTime = 0;
                     state.equipments[index].keyframes[key].forEach((k, idx) => {
-                        const gsappar = {};
                         if (idx === 0) {
-                            gsappar[key] = k.value;
-                            const from = {};
-                            from[key] = k.value;
-                            gsappar["duration"] = k.time - preTime;
-                            tl.current.fromTo(
-                                parmeter,
-                                from,
-                                gsappar,
-                                preTime
-                            );
-                        } else {
-                            gsappar[key] = k.value;
-                            gsappar["duration"] = k.time - preTime;
-                            tl.current.to(parmeter, gsappar, preTime);
-                            if (idx === state.equipments[index].keyframes[key].length - 1) {
-                                const lastFrom = {};
-                                const lastTo = {};
-                                lastFrom[key] = k.value;
-                                lastTo[key] = k.value;
-                                lastTo["duration"] = state.duration - k.time;
+                            const gsappar = {...parmeter[key], val: k.value};
+                            const from = {...parmeter[key], val: k.value};
+                            const duration = k.time - preTime
+                            if (duration !== 0) {
+                                gsappar["duration"] = duration;
+                                // @ts-ignore
                                 tl.current.fromTo(
-                                    parmeter,
-                                    lastFrom,
-                                    lastTo,
-                                    k.time
+                                    parmeter[key],
+                                    from,
+                                    gsappar,
+                                    preTime
                                 );
                             }
+                        } else {
+                            const gsappar = {...parmeter[key], val: k.value};
+                            gsappar["duration"] = k.time - preTime;
+                            // @ts-ignore
+                            tl.current.to(parmeter[key], gsappar, preTime);
                         }
-                        console.log(gsappar);
                         preTime = k.time;
                     });
                 }
@@ -226,23 +244,23 @@ export default function Movinglight(props) {
                             let preTime = 0;
                             state.equipments[index].keyframes[key][k].forEach(
                                 (keyframe, idx) => {
-                                    const gsappar = {};
                                     if (idx === 0) {
-                                        gsappar[k] = keyframe.value;
-                                        const firstfrom = {};
-                                        firstfrom[k] = keyframe.value;
+                                        const gsappar = {...parmeter[key].val[k], val: keyframe.value}
+                                        const from = {...parmeter[key].val[k], val: keyframe.value};
                                         gsappar["duration"] = keyframe.time - preTime;
+                                        // @ts-ignore
                                         tl.current.fromTo(
-                                            parmeter[key],
-                                            firstfrom,
+                                            parmeter[key].val[k],
+                                            from,
                                             gsappar,
                                             preTime
                                         );
                                     } else {
+                                        const gsappar = {...parmeter[key].val[k], val: keyframe.value};
                                         gsappar["duration"] = keyframe.time - preTime;
-                                        gsappar[k] = keyframe.value;
+                                        // @ts-ignore
                                         tl.current.to(
-                                            parmeter[key],
+                                            parmeter[key].val[k],
                                             gsappar,
                                             preTime
                                         );
@@ -255,10 +273,16 @@ export default function Movinglight(props) {
                 }
             });
         }
+        // @ts-ignore
+        tl.current?.seek(state.currentTime);
+        dispatch({type: ActionTypes.RERENDERING});
     }, [state.equipments[index]?.keyframes.amount]);
     useEffect(() => {
         if (state.playing) {
+            console.log('play');
+            // @ts-ignore
             gsapTimer.current = setInterval(() => {
+                // @ts-ignore
                 const time = tl.current.time();
                 if (time !== 0) {
                     dispatch({
@@ -267,48 +291,35 @@ export default function Movinglight(props) {
                     });
                 }
             }, 10);
+            // @ts-ignore
             tl.current?.play();
         } else {
             clearInterval(gsapTimer.current);
+            // @ts-ignore
             tl.current?.pause();
         }
     }, [state.playing]);
 
     useEffect(() => {
+        // @ts-ignore
         tl.current = gsap.timeline();
+        // @ts-ignore
         tl.current?.pause();
-        tl.current?.fromTo({currentTime: 0}, parmeter, {
-            currentTime: state.duration,
+        // @ts-ignore
+        tl.current?.fromTo({...parmeter.currentTime, val: 0}, parmeter.currentTime, {
+            ...parmeter.currentTime,
+            val: state.duration,
             duration: state.duration
         });
     }, []);
     useEffect(() => {
-        if (spotlight.current) {
-            spotlight.current.target = obj.current;
-        }
-    }, [spotlight]);
-    useEffect(() => {
         if (!state.playing) {
+            // @ts-ignore
             tl.current?.seek(state.currentTime);
             dispatch({type: ActionTypes.RERENDERING});
         }
     }, [state.currentTime]);
     let preOut = {};
-    useEffect(() => {
-        const out = {
-            1: parmeter.pan * 255 / 540,
-            2: parmeter.tilt * 270 / 255,
-            3: parmeter.color.r * 255,
-            4: parmeter.color.g * 255,
-            5: parmeter.color.b * 255,
-            7: parmeter.dimmer,
-            8: parmeter.strobe !== 0 ? 0 : 10 + parmeter.strobe * 245 / 20,
-            9: (1 - (parmeter.zoom / 90)) * 255,
-        };
-        const diff = omitBy(out, (v, k) => preOut[k] === v)
-        // universe?.update(diff);
-        preOut = out;
-    }, [parmeter])
     if (state.equipments[index]) {
         return (
             <group
@@ -326,10 +337,8 @@ export default function Movinglight(props) {
                 }}
             >
                 <mesh
-                    castShadow
                     receiveShadow
                     geometry={nodes.StageLigt_11_7.geometry}
-                    // material={nodes.StageLigt_11_7.material}
                     position={[2.13, 0.06, 0]}
                     rotation={[1.59, 0.01, -0.01]}
                     scale={0.36}
@@ -341,8 +350,8 @@ export default function Movinglight(props) {
                         rotation={[
                             0,
                             0,
-                            state.equipments[index]?.parmeter.pan
-                                ? (state.equipments[index]?.parmeter.pan * Math.PI * 2) / 360
+                            parmeter.pan.val
+                                ? (parmeter.pan.val * Math.PI * 2) / 360
                                 : 0,
                         ]}
                     >
@@ -353,7 +362,7 @@ export default function Movinglight(props) {
                             position={[-0.11, -1.31, -9.63]}
                             rotation={[
                                 state.equipments[index]?.parmeter.tilt
-                                    ? (state.equipments[index]?.parmeter.tilt * Math.PI * 2) / 360
+                                    ? (state.equipments[index]?.parmeter.tilt.val * Math.PI * 2) / 360
                                     : 0,
                                 0,
                                 0,
@@ -362,19 +371,19 @@ export default function Movinglight(props) {
                             <spotLight
                                 color={
                                     new Color(
-                                        parmeter.color.r,
-                                        parmeter.color.g,
-                                        parmeter.color.b
+                                        parmeter.color.val.r.val,
+                                        parmeter.color.val.g.val,
+                                        parmeter.color.val.b.val
                                     )
                                 }
                                 rotation={[Math.PI, Math.PI, Math.PI]}
                                 position={[0, 4.5, 0]}
-                                intensity={parmeter.dimmer}
+                                intensity={parmeter.strobe.val === 0 ? (parmeter.dimmer.val / 255) : (parmeter.dimmer.val / 255) * 0.5 + 0.5 * Math.sin(2 * Math.PI * parmeter.strobe.val * decimalPart(state.currentTime))}
                                 scale={[1, 1, 1]}
                                 ref={spotlight}
                                 angle={
                                     state.equipments[index]
-                                        ? ((parmeter.zoom / 90) *
+                                        ? ((parmeter.zoom.val / 90) *
                                             Math.PI) /
                                         2
                                         : Math.PI / 3
@@ -386,16 +395,16 @@ export default function Movinglight(props) {
                                 <object3D position={[0, 50, 5]} ref={obj}/>
                             </spotLight>
                             <mesh rotation={[0, 0, Math.PI]} position={[0, 15, 0]}>
-                                <coneGeometry args={[parmeter.zoom, 40, 64, 30, true, 40]}
+                                <coneGeometry args={[parmeter.zoom.val, 40, 64, 30, true, 40]}
                                               attach="geometry"/>
                                 <shaderMaterial
                                     attach="material"
                                     args={[volumetricMaterial]}
                                     uniforms-lightColor-value={
                                         ConvertRGBtoHex(
-                                            parmeter.color.r,
-                                            parmeter.color.g,
-                                            parmeter.color.b)}/>
+                                            parmeter.color.val.r.val,
+                                            parmeter.color.val.g.val,
+                                            parmeter.color.val.b.val)}/>
                             </mesh>
                             <mesh
                                 castShadow
@@ -406,20 +415,20 @@ export default function Movinglight(props) {
                             >
                                 <meshStandardMaterial
                                     emissiveIntensity={
-                                        parmeter.dimmer / 255
+                                        parmeter.strobe.val === 0 ? (parmeter.dimmer.val / 255) : (parmeter.dimmer.val / 255) * 0.5 + 0.5 * Math.sin(2 * Math.PI * parmeter.strobe.val * decimalPart(state.currentTime))
                                     }
                                     emissive={
                                         new Color(
-                                            parmeter.color.r,
-                                            parmeter.color.g,
-                                            parmeter.color.b
+                                            parmeter.color.val.r.val,
+                                            parmeter.color.val.g.val,
+                                            parmeter.color.val.b.val
                                         )
                                     }
                                     color={
                                         new Color(
-                                            parmeter.color.r,
-                                            parmeter.color.g,
-                                            parmeter.color.b
+                                            parmeter.color.val.r.val,
+                                            parmeter.color.val.g.val,
+                                            parmeter.color.val.b.val
                                         )
                                     }
                                 />
@@ -436,13 +445,11 @@ export default function Movinglight(props) {
                         castShadow
                         receiveShadow
                         geometry={nodes.StageLigt_11_5.geometry}
-                        // material={nodes.StageLigt_11_5.material}
                     />
                     <mesh
                         castShadow
                         receiveShadow
                         geometry={nodes.StageLigt_11_6.geometry}
-                        // material={nodes.StageLigt_11_6.material}
                     />
                 </mesh>
             </group>

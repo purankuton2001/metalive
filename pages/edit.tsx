@@ -1,24 +1,12 @@
-import {Canvas} from "@react-three/fiber";
 import React, {
-    memo,
-    useCallback,
-    useMemo,
-    useReducer,
-    useRef,
+    useCallback, useEffect, useLayoutEffect,
+    useReducer, useRef,
     useState,
 } from "react";
-import Venue from "../components/venue";
-import {OrbitControls, Stage, TransformControls} from "@react-three/drei";
-import axios from "axios";
+import axios, {AxiosRequestConfig} from "axios";
 import {GetStaticProps} from "next";
 import DmxSetting from "../components/DmxSetting";
-import {
-    IconButton,
-    Slider,
-    SliderFilledTrack,
-    SliderThumb,
-    SliderTrack,
-} from "@chakra-ui/react";
+
 import {
     Box,
     Button,
@@ -27,16 +15,11 @@ import {
     Tab,
     TabList,
     TabPanels,
-    TabPanel,
-    RangeSlider,
-    Grid,
-    GridItem,
-    chakra,
+    TabPanel, Modal, ModalOverlay, ModalBody, ModalHeader, ModalContent, ModalFooter, ModalCloseButton, useDisclosure,
 } from "@chakra-ui/react";
 import {useWindowSize} from "../hooks/useWindowSize";
-import Movinglight from "../components/movinglight";
 import {
-    ActionTypes,
+    ActionTypes, Color,
     EditorState,
     Equipment,
     EquipmentTypes,
@@ -46,73 +29,77 @@ import {EditorContext} from "../context/EditorContext";
 import {Resizable} from "re-resizable";
 import {CloseIcon} from "@chakra-ui/icons";
 import {ParmeterPanel} from "../components/ParmeterPanel";
-import * as THREE from "three";
+import useFirebase from "../hooks/useFirebase";
+import {getAuth} from "@firebase/auth";
+import {Direction} from "../types/lives";
+import EditSpace from "../components/EditSpace";
+import DirectionPost from "../components/DirectionPost";
+import {Howl} from 'howler';
+
 
 const initialEditorState: EditorState = {
-    equipments: [
-        {
-            position: [-55, 5, 95],
-            parmeter: {
-                currentTime: 0,
-                pan: 0,
-                tilt: 0,
-                zoom: 0,
-                dimmer: 0,
-                strobe: 0,
-                color: {r: 0, g: 0, b: 0},
-            },
-            max: {
-                pan: 540,
-                tilt: 270,
-                zoom: 90,
-                dimmer: 255,
-                strobe: 20,
-                color: {r: 1, g: 1, b: 1},
-            },
-            eId: 0,
-            keyframes: {
-                changed: false,
-                amount: 0,
-                pan: [],
-                tilt: [],
-                zoom: [],
-                dimmer: [],
-                strobe: [],
-                color: {r: [], g: [], b: []},
-            },
+    equipments: [{
+        eId: 0,
+        parmeter: {
+            pan: {val: 0, idx: 0},
+            tilt: {val: 0, idx: 1},
+            color: {val: {r: {val: 0, idx: 0}, g: {val: 0, idx: 1}, b: {val: 0, idx: 2}}, idx: 2},
+            dimmer: {val: 0, idx: 3},
+            strobe: {val: 0, idx: 4},
+            zoom: {val: 0, idx: 5},
+            currentTime: {val: 0, idx: 6},
         },
-        {
-            position: [90, 5, 95],
-            max: {
-                pan: 540,
-                tilt: 270,
-                zoom: 90,
-                dimmer: 255,
-                strobe: 20,
-                color: {r: 1, g: 1, b: 1},
-            },
-            parmeter: {
-                currentTime: 0,
-                pan: 0,
-                tilt: 0,
-                zoom: 0,
-                dimmer: 0,
-                strobe: 0,
-                color: {r: 0, g: 0, b: 0},
-            },
-            eId: 0,
-            keyframes: {
-                changed: false,
-                amount: 0,
-                pan: [],
-                tilt: [],
-                zoom: [],
-                dimmer: [],
-                strobe: [],
-                color: {r: [], g: [], b: []},
-            },
+        keyframes: {
+            changed: false,
+            amount: 0,
+            pan: [],
+            tilt: [],
+            zoom: [],
+            dimmer: [],
+            strobe: [],
+            color: {r: [], g: [], b: []},
         },
-    ],
+        max: {
+            pan: 540,
+            tilt: 270,
+            zoom: 90,
+            dimmer: 255,
+            strobe: 20,
+            color: {r: 1, g: 1, b: 1},
+        },
+        position: [-55, 5, 95],
+    }, {
+        eId: 0,
+        parmeter: {
+            pan: {val: 0, idx: 0},
+            tilt: {val: 0, idx: 1},
+            color: {val: {r: {val: 0, idx: 0}, g: {val: 0, idx: 1}, b: {val: 0, idx: 2}}, idx: 2},
+            dimmer: {val: 0, idx: 3},
+            strobe: {val: 0, idx: 4},
+            zoom: {val: 0, idx: 5},
+            currentTime: {val: 0, idx: 6},
+        },
+        keyframes: {
+            changed: false,
+            amount: 0,
+            pan: [],
+            tilt: [],
+            zoom: [],
+            dimmer: [],
+            strobe: [],
+            color: {r: [], g: [], b: []},
+        },
+        max: {
+            pan: 540,
+            tilt: 270,
+            zoom: 90,
+            dimmer: 255,
+            strobe: 20,
+            color: {r: 1, g: 1, b: 1},
+        },
+        position: [90, 5, 95],
+    }],
+    url: 'https://firebasestorage.googleapis.com/v0/b/metalive-348103.appspot.com/o/Venue.glb?alt=media&token=a9e2cedb-8050-43b6-bdec-6f77d9ccdb6f',
     dmxConnect: null,
     duration: 10,
     currentTime: 0,
@@ -123,43 +110,49 @@ const initialEditorState: EditorState = {
         object: null,
         index: null,
     },
+    liveId: '',
 };
 
-function Edit({url}) {
-    console.log(url);
-    const stateToComponents = (equipment: Equipment, index) => {
-        switch (equipment.eId) {
-            case 0:
-                return <Movinglight {...equipment} index={index}/>;
+function Edit({data}) {
+    useEffect(() => {
+        if (data) {
+            dispatch({type: ActionTypes.LIVEDATAFETCH, payload: {data}})
         }
-    };
-
+    }, [data])
     const {width, height} = useWindowSize();
     const [state, dispatch] = useReducer(editorReducer, initialEditorState);
     const [isVisible, setIsVisible] = useState(false);
+    let loading = false;
+    const {app, user} = useFirebase();
+    const {isOpen, onOpen, onClose} = useDisclosure()
+    const audio = useRef(new Howl({
+        src: '/asset/e-ma_Mastered2.wav',
+        html5: true,
+    }));
+    useLayoutEffect(() => {
+        audio.current.on('load', () => {
+            console.log(audio.current.duration())
+            dispatch({type: ActionTypes.SETDURATION, payload: {duration: audio.current.duration()}})
+        })
+        audio.current.load();
+    }, []);
+    useLayoutEffect(() => {
+        if (state.playing) {
+            audio.current.seek(state.currentTime);
+            audio.current.play();
+        } else {
+            audio.current.pause();
+        }
+    }, [state.playing])
+    useEffect(() => {
+        setIsVisible(true)
+    }, [state.transformControl.index])
 
     return (
-        <Box w={width} h={height} maxHeight={isVisible ? (4 * height) / 5 : height}>
+        <Box w={width} h={height} maxHeight={isVisible ? (4 * height) / 5 : height} pos={"absolute"} top={0}
+             zIndex={20}>
             <EditorContext.Provider value={{state, dispatch}}>
-                <Canvas
-                    gl={{alpha: false}}
-                    camera={{position: [0, 0, 0], fov: 30}}
-                >
-                    <Stage>
-                        <EditorContext.Provider value={{state, dispatch}}>
-                            <Venue
-                                url={"https://firebasestorage.googleapis.com/v0/b/metalive-348103.appspot.com/o/Venue.glb?alt=media&token=a9e2cedb-8050-43b6-bdec-6f77d9ccdb6f"}/>
-                            {state.equipments?.map(stateToComponents)}
-                        </EditorContext.Provider>
-                    </Stage>
-                    <OrbitControls attach="orbitControls" makeDefault/>
-                    {/*{state.transformControl.object && (*/}
-                    {/*  <TransformControls*/}
-                    {/*    mode={state.transformControl?.mode}*/}
-                    {/*    object={state.transformControl.object}*/}
-                    {/*  />*/}
-                    {/*)}*/}
-                </Canvas>
+                <EditSpace state={state} dispatch={dispatch}/>
                 {!isVisible && (
                     <Button
                         onClick={() => {
@@ -170,7 +163,20 @@ function Edit({url}) {
                         bottom={10}
                         right={10}
                     >
-                        test
+                        menu
+                    </Button>
+                )}
+                {!isVisible && (
+                    <Button
+                        onClick={async () => {
+                            onOpen();
+                        }}
+                        pos={"absolute"}
+                        isActive={!isVisible}
+                        bottom={10}
+                        right={150}
+                    >
+                        POST
                     </Button>
                 )}
                 {isVisible && (
@@ -185,34 +191,35 @@ function Edit({url}) {
                         minHeight={height / 5}
                     >
                         <Box py={4} bg={"white"} width={width} height={"100%"} px={8}>
-                            <Tabs>
-                                <TabList>
-                                    <Tab>機材一覧</Tab>
-                                    <Tab>エフェクト</Tab>
-                                    <Tab>DMX</Tab>
-                                </TabList>
-                                <TabPanels>
-                                    <TabPanel>
-                                        <Button
-                                            onClick={() => {
-                                                console.log("click");
-                                                dispatch({
-                                                    type: ActionTypes.ADDEQUIPMENT,
-                                                    payload: {equipment: EquipmentTypes.MovingLight},
-                                                });
-                                            }}
-                                        >
-                                            ムービングライト{state.equipments.length}
-                                        </Button>
-                                    </TabPanel>
-                                    <TabPanel>
-                                        <ParmeterPanel/>
-                                    </TabPanel>
-                                    <TabPanel>
-                                        <DmxSetting/>
-                                    </TabPanel>
-                                </TabPanels>
-                            </Tabs>
+                            <ParmeterPanel/>
+
+                            {/*<Tabs>*/}
+                            {/*    <TabList>*/}
+                            {/*        <Tab>機材一覧</Tab>*/}
+                            {/*        <Tab>エフェクト</Tab>*/}
+                            {/*        <Tab>DMX</Tab>*/}
+                            {/*    </TabList>*/}
+                            {/*    <TabPanels>*/}
+                            {/*        <TabPanel>*/}
+                            {/*            <Button*/}
+                            {/*                onClick={() => {*/}
+                            {/*                    console.log("click");*/}
+                            {/*                    dispatch({*/}
+                            {/*                        type: ActionTypes.ADDEQUIPMENT,*/}
+                            {/*                        payload: {equipment: EquipmentTypes.MovingLight},*/}
+                            {/*                    });*/}
+                            {/*                }}*/}
+                            {/*            >*/}
+                            {/*                ムービングライト{state.equipments.length}*/}
+                            {/*            </Button>*/}
+                            {/*        </TabPanel>*/}
+                            {/*        <TabPanel>*/}
+                            {/*        </TabPanel>*/}
+                            {/*        <TabPanel>*/}
+                            {/*            <DmxSetting/>*/}
+                            {/*        </TabPanel>*/}
+                            {/*    </TabPanels>*/}
+                            {/*</Tabs>*/}
                         </Box>
                         <CloseIcon
                             cursor={"pointer"}
@@ -227,6 +234,16 @@ function Edit({url}) {
                         />
                     </Resizable>
                 )}
+                <Modal isOpen={isOpen} onClose={onClose}>
+                    <ModalOverlay/>
+                    <ModalContent>
+                        <ModalHeader>POST</ModalHeader>
+                        <ModalCloseButton/>
+                        <ModalBody>
+                            <DirectionPost/>
+                        </ModalBody>
+                    </ModalContent>
+                </Modal>
             </EditorContext.Provider>
         </Box>
     );
@@ -235,20 +252,20 @@ function Edit({url}) {
 export default Edit;
 
 export const getStaticProps: GetStaticProps = async () => {
-    const data = {fileName: "Venue.glb"};
-    const res = await axios.post(
-        "https://us-central1-metalive-348103.cloudfunctions.net/liveFetch",
-        data
-    );
-    const url: string = res.data;
+    const res = await axios.get(
+        `https://us-central1-metalive-348103.cloudfunctions.net/liveFetch`, {
+            params: {id: "xSfcYiI8qpEqMI6ADGuy"}
+        });
+    const data = res.data;
+    data.liveId = "xSfcYiI8qpEqMI6ADGuy";
 
-    if (!url) {
+    if (!data) {
         return {
             notFound: true,
         };
     }
 
     return {
-        props: {url},
+        props: {data},
     };
 };
