@@ -1,5 +1,4 @@
 import React, {Suspense, useMemo} from "react";
-import {useGLTF} from "@react-three/drei";
 import {} from "react";
 import {useLoader} from '@react-three/fiber'
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader'

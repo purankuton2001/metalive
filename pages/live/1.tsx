@@ -15,7 +15,6 @@ import {GetStaticProps} from "next";
 import axios, {AxiosRequestConfig} from "axios";
 import DirectionPlayer from "../../components/DirectionPlayer";
 import HorizontalScroll from 'react-scroll-horizontal'
-import {getAuth} from "@firebase/auth";
 import useFirebase from "../../hooks/useFirebase";
 
 
